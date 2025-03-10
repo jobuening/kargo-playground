@@ -111,7 +111,7 @@ spec:
   - git:
       repoURL: git@github.com:jobuening/kargo-playground.git
       includePaths:
-      - helm/test/test
+      - helm/test/test*
 
 
 ---
