@@ -1,10 +1,3 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kargo-test
-  labels:
-    kargo.akuity.io/project: "true"
----
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Project
 metadata:
@@ -111,37 +104,7 @@ spec:
   - git:
       repoURL: git@github.com:jobuening/kargo-playground.git
       includePaths:
-      - helm/test/test/*
-
-
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: kargo-git-cred
-  namespace: kargo-test
-  labels:
-    kargo.akuity.io/cred-type: git
-data:
-  repoURL: Z2l0QGdpdGh1Yi5jb206am9idWVuaW5nL2thcmdvLXBsYXlncm91bmQuZ2l0
-  sshPrivateKey: LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUFNd0FBQUF0emMyZ3RaVwpReU5UVXhPUUFBQUNEWFNQdDFLTFZTcmhlQlhKSEpYSUxzd0RHd1JxdVBWUm8yU083TmpQSVd2Z0FBQUtDK0R0YkJ2ZzdXCndRQUFBQXR6YzJndFpXUXlOVFV4T1FBQUFDRFhTUHQxS0xWU3JoZUJYSkhKWElMc3dER3dScXVQVlJvMlNPN05qUElXdmcKQUFBRUJCUDVieUVwU0hsSzNHaFV6Q2xyZWwvK3lvL0lTRlZuQitveTdKVUVSRndkZEkrM1VvdFZLdUY0RmNrY2xjZ3V6QQpNYkJHcTQ5VkdqWkk3czJNOGhhK0FBQUFGbmx2ZFhKZlpXMWhhV3hBWlhoaGJYQnNaUzVqYjIwQkFnTUVCUVlICi0tLS0tRU5EIE9QRU5TU0ggUFJJVkFURSBLRVktLS0tLQ==
-
-
----
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: kargo-image-cred
-  namespace: kargo-test
-  labels:
-    kargo.akuity.io/cred-type: image
-stringData:
-  repoURL: mobidrom.cr.de-fra.ionos.com/*
-  username: clusteruser
-  password: 73b2fd5b96a499cb615a9a2b34c7edd6
-  repoURLIsRegex: "true" 
+      - helm/test/test
 
 ---
 
@@ -180,7 +143,7 @@ spec:
     config:
       path: ./src/helm/test/test
       valuesFiles:
-      - ./src/charts/my-chart/${{ ctx.stage }}-values.yaml
+      - ./src/helm/test/test/stage/${{ vars.stage }}-values.yaml
       outPath: ./deploy/helm/test/test
   - uses: git-commit
     as: commit
