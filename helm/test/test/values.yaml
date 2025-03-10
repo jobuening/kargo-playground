@@ -1,0 +1,14 @@
+deployment:
+  # -- Number of replicas to deploy 
+  replicaCount: 1
+
+  image:
+    # -- The registry to pull the image from.
+    # NOTE: The ImagePulLSecrets for the mobidevregistry and mobidrom registires are automatically given to the deployment.
+    registry: mobidrom.cr.de-fra.ionos.com
+    # -- The image repository and name to pull from, i.e. exampleRepo/imageName, required
+    repository: kargotest
+    # -- Image Tag
+    tag: ""
+    # -- The pullPolicy for the image
+    pullPolicy: IfNotPresent

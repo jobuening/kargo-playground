@@ -1,0 +1,28 @@
+{{- with .Values.deployment }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  revisionHistoryLimit: 0
+  replicas: {{ .replicaCount }}
+  selector:
+    matchLabels:
+      bla: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        bla: {{ .Release.Name }}
+    spec:
+      imagePullSecrets:
+        - name: ionos-registry-secret
+        - name: ionos-ops-registry-secret
+      containers:
+        - name: {{ .Release.Name }}
+          image: "{{ .image.registry }}/{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          ports:
+            - name: asd
+              containerPort: 123
+              protocol: TCP
+{{- end }}

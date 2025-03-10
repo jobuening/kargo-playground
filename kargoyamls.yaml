@@ -1,0 +1,213 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kargo-test
+  labels:
+    kargo.akuity.io/project: "true"
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: kargo-test
+  annotations:
+    # This annotation ensures Projects (Namespaces) are created first when deployed via Argo CD
+    argocd.argoproj.io/sync-wave: "-1"
+---
+
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: kargo-test
+  annotations:
+    kargo.akuity.io/color: red
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: test
+    sources:
+      direct: true
+  promotionTemplate:
+    spec:
+      steps:
+      - task:
+          name: promote
+        vars:
+        - name: stage
+          value: dev
+        - name: branch
+          value: dev-cluster
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: kargo-test
+  annotations:
+    kargo.akuity.io/color: amber
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: test
+    sources:
+      stages:
+      - dev
+  promotionTemplate:
+    spec:
+      steps:
+      - task:
+          name: promote
+        vars:
+        - name: openpr
+          value: "true"
+        - name: stage
+          value: test
+        - name: branch
+          value: test-cluster
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: kargo-test
+  annotations:
+    kargo.akuity.io/color: violet
+spec:
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: test
+    sources:
+      stages:
+      - staging
+  promotionTemplate:
+    spec:
+      steps:
+      - task:
+          name: promote
+        vars:
+        - name: openpr
+          value: "true"
+        - name: stage
+          value: prod
+        - name: branch
+          value: prod-cluster
+---
+
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: test
+  namespace: kargo-test
+spec:
+  subscriptions:
+  - image:
+      repoURL: mobidrom.cr.de-fra.ionos.com/kargotest
+      imageSelectionStrategy: Lexical
+      allowTags: ^test-date\d{2}$
+  - git:
+      repoURL: git@github.com:jobuening/kargo-playground.git
+      includePaths:
+      - helm/test/test
+
+
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: kargo-git-cred
+  namespace: kargo-test
+  labels:
+    kargo.akuity.io/cred-type: git
+data:
+  repoURL: Z2l0QGdpdGh1Yi5jb206am9idWVuaW5nL2thcmdvLXBsYXlncm91bmQuZ2l0
+  sshPrivateKey: LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUFNd0FBQUF0emMyZ3RaVwpReU5UVXhPUUFBQUNEWFNQdDFLTFZTcmhlQlhKSEpYSUxzd0RHd1JxdVBWUm8yU083TmpQSVd2Z0FBQUtDK0R0YkJ2ZzdXCndRQUFBQXR6YzJndFpXUXlOVFV4T1FBQUFDRFhTUHQxS0xWU3JoZUJYSkhKWElMc3dER3dScXVQVlJvMlNPN05qUElXdmcKQUFBRUJCUDVieUVwU0hsSzNHaFV6Q2xyZWwvK3lvL0lTRlZuQitveTdKVUVSRndkZEkrM1VvdFZLdUY0RmNrY2xjZ3V6QQpNYkJHcTQ5VkdqWkk3czJNOGhhK0FBQUFGbmx2ZFhKZlpXMWhhV3hBWlhoaGJYQnNaUzVqYjIwQkFnTUVCUVlICi0tLS0tRU5EIE9QRU5TU0ggUFJJVkFURSBLRVktLS0tLQ==
+
+
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: kargo-image-cred
+  namespace: kargo-test
+  labels:
+    kargo.akuity.io/cred-type: image
+stringData:
+  repoURL: mobidrom.cr.de-fra.ionos.com/*
+  username: clusteruser
+  password: 73b2fd5b96a499cb615a9a2b34c7edd6
+  repoURLIsRegex: "true" 
+
+---
+
+apiVersion: kargo.akuity.io/v1alpha1
+kind: PromotionTask
+metadata:
+  name: promote
+  namespace: kargo-test
+spec:
+  vars:
+  - name: image
+    value: mobidrom.cr.de-fra.ionos.com/kargotest
+  - name: repoURL
+    value: git@github.com:jobuening/kargo-playground.git
+  - name: branch
+    value: main
+  - name: stage
+  # - name: argocdApp
+  - name: openpr
+    value: "false"
+  steps:
+  - uses: git-clone
+    config:
+      repoURL: ${{ vars.repoURL }}
+      checkout:
+      - branch: main
+        path: ./src
+  - uses: yaml-update
+    as: update-image
+    config:
+      path: ./src/helm/test/test/values.yaml
+      updates:
+      - key: deployment.image.tag
+        value: ${{ imageFrom( vars.image ).Tag }}
+  - uses: helm-template
+    config:
+      path: ./src/helm/test/test
+      valuesFiles:
+      - ./src/charts/my-chart/${{ ctx.stage }}-values.yaml
+      outPath: ./deploy/helm/test/test
+  - uses: git-commit
+    as: commit
+    config:
+      path: ./out
+      message: ${{ task.outputs['update-image'].commitMessage }}
+  - uses: git-push
+    as: push-directly
+    if: ${{ vars.openpr == 'false' }}
+    config:
+      path: ./deploy/helm/test/test
+      branch: ${{ vars.branch }}
+  - uses: git-push
+    as: push-to-temp
+    if: ${{ vars.openpr == 'true' }}
+    config:
+      path: ./deploy/helm/test/test
+      generateTargetBranch: true
+  - uses: git-open-pr
+    as: open-pr
+    if: ${{ vars.openpr == 'true' }}
+    config:
+      repoURL: ${{ vars.repoURL }}
+      createTargetBranch: true
+      sourceBranch: ${{ outputs.push-to-temp.branch }}
+      targetBranch: ${{ vars.branch }}
+  # - uses: argocd-update
+  #   config:
+  #     apps:
+  #     - name: ${{ vars.argocdApp }}
