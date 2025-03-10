@@ -1,0 +1,28 @@
+---
+# Source: my-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+spec:
+  revisionHistoryLimit: 0
+  replicas: 1
+  selector:
+    matchLabels:
+      bla: test
+  template:
+    metadata:
+      labels:
+        bla: test
+    spec:
+      imagePullSecrets:
+        - name: ionos-registry-secret
+        - name: ionos-ops-registry-secret
+      containers:
+        - name: test
+          image: "mobidrom.cr.de-fra.ionos.com/kargotest:test-date01"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: asd
+              containerPort: 123
+              protocol: TCP
