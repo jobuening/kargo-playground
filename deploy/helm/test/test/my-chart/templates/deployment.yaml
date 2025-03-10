@@ -6,7 +6,7 @@ metadata:
   name: test
 spec:
   revisionHistoryLimit: 0
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       bla: test
