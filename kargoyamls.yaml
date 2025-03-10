@@ -27,8 +27,6 @@ spec:
       - task:
           name: promote
         vars:
-        - name: stage
-          value: dev
         - name: branch
           value: dev-cluster
 
@@ -56,8 +54,6 @@ spec:
         vars:
         - name: openpr
           value: "true"
-        - name: stage
-          value: test
         - name: branch
           value: test-cluster
 ---
@@ -84,8 +80,6 @@ spec:
         vars:
         - name: openpr
           value: "true"
-        - name: stage
-          value: prod
         - name: branch
           value: prod-cluster
 ---
@@ -121,7 +115,6 @@ spec:
     value: git@github.com:jobuening/kargo-playground.git
   - name: branch
     value: main
-  - name: stage
   # - name: argocdApp
   - name: openpr
     value: "false"
@@ -132,6 +125,12 @@ spec:
       checkout:
       - branch: main
         path: ./src
+      - branch: ${{ vars.branch }}
+        create: true
+        path: .out
+  - uses: git-clear
+    config:
+      path: .out
   - uses: yaml-update
     as: update-image
     config:
@@ -144,28 +143,27 @@ spec:
       path: ./src/helm/test/test
       releaseName: test
       valuesFiles:
-      - ./src/helm/test/test/stage/${{ vars.stage }}.yaml
-      outPath: ./deploy/helm/test/test
+      - ./src/helm/test/test/stage/${{ ctx.stage }}.yaml
+      outPath: .out/deploy/helm/test/test
   - uses: git-commit
     as: commit
     config:
-      path: ./out
+      path: .out
       message: ${{ task.outputs['update-image'].commitMessage }}
   - uses: git-push
     as: push-directly
-    if: ${{ vars.openpr == 'false' }}
+    if: ${{ vars.openpr == false }}
     config:
-      path: ./deploy/helm/test/test
-      branch: ${{ vars.branch }}
+      path: .out
   - uses: git-push
     as: push-to-temp
-    if: ${{ vars.openpr == 'true' }}
+    if: ${{ vars.openpr == true }}
     config:
-      path: ./deploy/helm/test/test
+      path: .out
       generateTargetBranch: true
   - uses: git-open-pr
     as: open-pr
-    if: ${{ vars.openpr == 'true' }}
+    if: ${{ vars.openpr == true }}
     config:
       repoURL: ${{ vars.repoURL }}
       createTargetBranch: true
