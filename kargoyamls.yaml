@@ -142,8 +142,9 @@ spec:
   - uses: helm-template
     config:
       path: ./src/helm/test/test
+      releaseName: test
       valuesFiles:
-      - ./src/helm/test/test/stage/${{ vars.stage }}-values.yaml
+      - ./src/helm/test/test/stage/${{ vars.stage }}.yaml
       outPath: ./deploy/helm/test/test
   - uses: git-commit
     as: commit
