@@ -18,7 +18,7 @@ spec:
   requestedFreight:
   - origin:
       kind: Warehouse
-      name: test
+      name: test-warehouse
     sources:
       direct: true
   promotionTemplate:
@@ -29,12 +29,14 @@ spec:
         vars:
         - name: branch
           value: dev-cluster
+        - name: openpr
+          value: "false"
 
 ---
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Stage
 metadata:
-  name: staging
+  name: test
   namespace: kargo-test
   annotations:
     kargo.akuity.io/color: amber
@@ -42,7 +44,7 @@ spec:
   requestedFreight:
   - origin:
       kind: Warehouse
-      name: test
+      name: test-warehouse
     sources:
       stages:
       - dev
@@ -68,10 +70,10 @@ spec:
   requestedFreight:
   - origin:
       kind: Warehouse
-      name: test
+      name: test-warehouse
     sources:
       stages:
-      - staging
+      - test
   promotionTemplate:
     spec:
       steps:
@@ -87,7 +89,7 @@ spec:
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Warehouse
 metadata:
-  name: test
+  name: test-warehouse
   namespace: kargo-test
 spec:
   subscriptions:
@@ -96,7 +98,7 @@ spec:
       imageSelectionStrategy: Lexical
       allowTags: ^test-date\d{2}$
   - git:
-      repoURL: git@github.com:jobuening/kargo-playground.git
+      repoURL: https://github.com/jobuening/kargo-playground.git
       includePaths:
       - helm/test/test
 
@@ -117,7 +119,6 @@ spec:
     value: main
   # - name: argocdApp
   - name: openpr
-    value: "false"
   steps:
   - uses: git-clone
     config:
@@ -132,6 +133,13 @@ spec:
     config:
       path: .out
   - uses: yaml-update
+    as: update-chart-name
+    config:
+      path: ./src/helm/test/test/Chart.yaml
+      updates:
+      - key: name
+        value: test
+  - uses: yaml-update
     as: update-image
     config:
       path: ./src/helm/test/test/values.yaml
@@ -144,7 +152,7 @@ spec:
       releaseName: test
       valuesFiles:
       - ./src/helm/test/test/stage/${{ ctx.stage }}.yaml
-      outPath: .out/deploy/helm/test/test
+      outPath: .out/deploy/helm/test/
   - uses: git-commit
     as: commit
     config:
@@ -152,23 +160,28 @@ spec:
       message: ${{ task.outputs['update-image'].commitMessage }}
   - uses: git-push
     as: push-directly
-    if: ${{ vars.openpr == false }}
+    if: ${{ vars.openpr == "false" }}
     config:
       path: .out
   - uses: git-push
     as: push-to-temp
-    if: ${{ vars.openpr == true }}
+    if: ${{ vars.openpr == "true" }}
     config:
       path: .out
       generateTargetBranch: true
   - uses: git-open-pr
     as: open-pr
-    if: ${{ vars.openpr == true }}
+    if: ${{ vars.openpr == "true" }}
     config:
       repoURL: ${{ vars.repoURL }}
       createTargetBranch: true
-      sourceBranch: ${{ outputs.push-to-temp.branch }}
-      targetBranch: ${{ vars.branch }}
+      sourceBranch: ${{ task.outputs['push-to-temp'].branch }}
+      targetBranch: ${{ ctx.stage }}-cluster
+  - uses: git-wait-for-pr
+    as: wait-for-pr
+    config:
+      repoURL: ${{ vars.repoURL }}
+      prNumber: ${{ outputs['open-pr'].prNumber }}
   # - uses: argocd-update
   #   config:
   #     apps:

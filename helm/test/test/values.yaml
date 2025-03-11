@@ -1,6 +1,6 @@
 deployment:
   # -- Number of replicas to deploy 
-  replicaCount: 1
+  replicaCount: 12
 
   image:
     # -- The registry to pull the image from.
